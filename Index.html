@@ -1,0 +1,200 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie & TV Show Info Finder</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background-color: #f0f0f0;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .search-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+    .search-section input {
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+    .search-section button {
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .recommend-btn {
+      margin-top: 0.5rem;
+    }
+    .card {
+      background-color: #f9f9f9;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .card img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .recommendations {
+      margin-top: 2rem;
+    }
+    .rec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    a {
+      color: #007BFF;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    @media (min-width: 600px) {
+      .search-section {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Movie & TV Show Info Finder</h1>
+    <div class="search-section">
+      <input type="text" id="searchInput" placeholder="Enter movie or TV show name" />
+      <button onclick="searchMovie()">Search</button>
+      <button class="recommend-btn" onclick="generateRecommendations()">Refresh Recommendations</button>
+    </div>
+    <div id="result"></div>
+    <div class="recommendations">
+      <h2>Must Watch Recommendations</h2>
+      <div class="rec-grid" id="recommendations"></div>
+    </div>
+    <div class="card" id="staticMovie"></div>
+  </div>  <script>
+    const API_KEY = 'bbca31b2';
+
+    const randomWords = [
+      "love", "death", "city", "war", "dream", "ghost", "future", "revenge", "life", "night",
+      "man", "woman", "king", "queen", "fire", "dark", "moon", "star", "road", "power"
+    ];
+
+    function getYoutubeSearchLink(title) {
+      return `https://m.youtube.com/results?sp=mAEA&search_query=${encodeURIComponent(title)}`;
+    }
+
+    async function searchMovie() {
+      const query = document.getElementById('searchInput').value;
+      if (!query) return;
+
+      const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(query)}&apikey=${API_KEY}`);
+      const data = await res.json();
+
+      const resultContainer = document.getElementById('result');
+      if (data.Response === 'True') {
+        resultContainer.innerHTML = `
+          <div class="card">
+            <img src="${data.Poster !== "N/A" ? data.Poster : ''}" alt="${data.Title} poster">
+            <h2><a href="${getYoutubeSearchLink(data.Title)}" target="_blank">${data.Title}</a></h2>
+            <p><strong>Year:</strong> ${data.Year}</p>
+            <p><strong>Genre:</strong> ${data.Genre}</p>
+            <p><strong>Type:</strong> ${data.Type}</p>
+            <p><strong>Actors:</strong> ${data.Actors}</p>
+            <p><strong>IMDB Rating:</strong> ${data.imdbRating}</p>
+            <p><strong>Plot:</strong> ${data.Plot}</p>
+          </div>
+        `;
+      } else {
+        resultContainer.innerHTML = `<div class="card">No information found for "${query}"</div>`;
+      }
+    }
+
+    async function generateRecommendations() {
+      const container = document.getElementById('recommendations');
+      container.innerHTML = '';
+      const used = new Set();
+
+      while (used.size < 3) {
+        const word = randomWords[Math.floor(Math.random() * randomWords.length)];
+        const year = Math.floor(Math.random() * (2024 - 1960 + 1)) + 1960;
+
+        const res = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(word)}&y=${year}&apikey=${API_KEY}`);
+        const data = await res.json();
+
+        if (data.Response === 'True') {
+          const randomItem = data.Search[Math.floor(Math.random() * data.Search.length)];
+          if (!used.has(randomItem.imdbID)) {
+            used.add(randomItem.imdbID);
+            const itemDetails = await fetch(`https://www.omdbapi.com/?i=${randomItem.imdbID}&apikey=${API_KEY}`);
+            const info = await itemDetails.json();
+
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+              <img src="${info.Poster !== "N/A" ? info.Poster : ''}" alt="${info.Title} poster">
+              <h3><a href="${getYoutubeSearchLink(info.Title)}" target="_blank">${info.Title}</a></h3>
+              <p><strong>Year:</strong> ${info.Year}</p>
+              <p><strong>Type:</strong> ${info.Type}</p>
+              <p><strong>Genre:</strong> ${info.Genre}</p>
+              <p><strong>IMDB Rating:</strong> ${info.imdbRating}</p>
+              <p><strong>Plot:</strong> ${info.Plot}</p>
+            `;
+            container.appendChild(div);
+          }
+        }
+      }
+    }
+
+    async function loadStaticMovie() {
+      const res = await fetch(`https://www.omdbapi.com/?i=tt3896198&apikey=${API_KEY}`);
+      const data = await res.json();
+      const container = document.getElementById('staticMovie');
+      if (data.Response === 'True') {
+        container.innerHTML = `
+          <img src="${data.Poster !== "N/A" ? data.Poster : ''}" alt="${data.Title} poster">
+          <h2><a href="${getYoutubeSearchLink(data.Title)}" target="_blank">${data.Title}</a></h2>
+          <p><strong>Year:</strong> ${data.Year}</p>
+          <p><strong>Genre:</strong> ${data.Genre}</p>
+          <p><strong>Type:</strong> ${data.Type}</p>
+          <p><strong>Actors:</strong> ${data.Actors}</p>
+          <p><strong>IMDB Rating:</strong> ${data.imdbRating}</p>
+          <p><strong>Plot:</strong> ${data.Plot}</p>
+        `;
+      }
+    }
+
+    window.onload = () => {
+      generateRecommendations();
+      loadStaticMovie();
+    };
+  </script></body>
+</html>
